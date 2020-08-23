@@ -1,12 +1,9 @@
-# imports - standard imports
-import getpass
-import json
-import multiprocessing
-import os
+import os, multiprocessing, getpass, json
 
-# imports - third party imports
-from six.moves.urllib.parse import urlparse
-
+try:
+	from urllib.parse import urlparse
+except ImportError:
+	from urlparse import urlparse
 
 default_config = {
 	'restart_supervisor_on_update': False,
@@ -14,6 +11,7 @@ default_config = {
 	'auto_update': False,
 	'serve_default_site': True,
 	'rebase_on_pull': False,
+	'update_bench_on_update': True,
 	'frappe_user': getpass.getuser(),
 	'shallow_clone': True,
 	'background_workers': 1

@@ -15,16 +15,13 @@ import click
 
 branches_to_update = {
 	'develop': [],
-	'version-11-hotfix': [],
-	'version-12-hotfix': [],
+	'hotfix': ['develop']
 }
-
-releasable_branches = ['master']
 
 github_username = None
 github_password = None
 
-def release(bench_path, app, bump_type, from_branch, to_branch,
+def release(bench_path, app, bump_type, from_branch='develop', to_branch='master',
 		remote='upstream', owner='frappe', repo_name=None, frontport=True):
 
 	confirm_testing()
@@ -33,13 +30,10 @@ def release(bench_path, app, bump_type, from_branch, to_branch,
 	if not config.get('release_bench'):
 		print('bench not configured to release')
 		sys.exit(1)
-
+	
 
 	if config.get('branches_to_update'):
 		branches_to_update.update(config.get('branches_to_update'))
-
-	if config.get('releasable_branches'):
-		releasable_branches.extend(config.get('releasable_branches',[]))
 
 	validate(bench_path, config)
 
@@ -83,7 +77,9 @@ def bump(bench_path, app, bump_type, from_branch, to_branch, remote, owner, repo
 		print('No commits to release')
 		return
 
+	print()
 	print(message)
+	print()
 
 	click.confirm('Do you want to continue?', abort=True)
 
@@ -95,7 +91,7 @@ def bump(bench_path, app, bump_type, from_branch, to_branch, remote, owner, repo
 	create_github_release(repo_path, tag_name, message, remote=remote, owner=owner, repo_name=repo_name, prerelease=prerelease)
 	print('Released {tag} for {repo_path}'.format(tag=tag_name, repo_path=repo_path))
 
-def update_branches_and_check_for_changelog(repo_path, from_branch, to_branch, remote='upstream'):
+def update_branches_and_check_for_changelog(repo_path, from_branch='develop', to_branch='master', remote='upstream'):
 
 	update_branch(repo_path, to_branch, remote=remote)
 	update_branch(repo_path, from_branch, remote=remote)
@@ -120,7 +116,7 @@ def check_for_unmerged_changelog(repo_path):
 	if os.path.exists(current) and [f for f in os.listdir(current) if f != "readme.md"]:
 		raise Exception("Unmerged change log! in " + repo_path)
 
-def get_release_message(repo_path, from_branch, to_branch, remote='upstream'):
+def get_release_message(repo_path, from_branch='develop', to_branch='master', remote='upstream'):
 	print('getting release message for', repo_path, 'comparing', to_branch, '...', from_branch)
 
 	repo = git.Repo(repo_path)
@@ -131,7 +127,7 @@ def get_release_message(repo_path, from_branch, to_branch, remote='upstream'):
 	if log:
 		return "* " + log.replace('\n', '\n* ')
 
-def bump_repo(repo_path, bump_type, from_branch, to_branch):
+def bump_repo(repo_path, bump_type, from_branch='develop', to_branch='master'):
 	current_version = get_current_version(repo_path, to_branch)
 	new_version = get_bumped_version(current_version, bump_type)
 
@@ -144,7 +140,7 @@ def get_current_version(repo_path, to_branch):
 	# TODO clean this up!
 	version_key = '__version__'
 
-	if to_branch.lower() in releasable_branches:
+	if to_branch.lower() == 'master':
 		filename = os.path.join(repo_path, os.path.basename(repo_path), '__init__.py')
 	else:
 		filename = os.path.join(repo_path, os.path.basename(repo_path), 'hooks.py')
@@ -198,7 +194,7 @@ def get_bumped_version(version, bump_type):
 	return str(v)
 
 def set_version(repo_path, version, to_branch):
-	if to_branch.lower() in releasable_branches:
+	if to_branch.lower() == 'master':
 		set_filename_version(os.path.join(repo_path, os.path.basename(repo_path),'__init__.py'), version, '__version__')
 	else:
 		set_filename_version(os.path.join(repo_path, os.path.basename(repo_path),'hooks.py'), version, 'staging_version')
@@ -241,14 +237,14 @@ def commit_changes(repo_path, new_version, to_branch):
 	repo = git.Repo(repo_path)
 	app_name = os.path.basename(repo_path)
 
-	if to_branch.lower() in releasable_branches:
+	if to_branch.lower() == 'master':
 		repo.index.add([os.path.join(app_name, '__init__.py')])
 	else:
 		repo.index.add([os.path.join(app_name, 'hooks.py')])
 
 	repo.index.commit('bumped to version {}'.format(new_version))
 
-def create_release(repo_path, new_version, from_branch, to_branch, frontport=True):
+def create_release(repo_path, new_version, from_branch='develop', to_branch='master', frontport=True):
 	print('creating release for version', new_version)
 	repo = git.Repo(repo_path)
 	g = repo.git
@@ -287,7 +283,7 @@ def handle_merge_error(e, source, target):
 	print('-'*80)
 	click.confirm('Have you manually resolved the error?', abort=True)
 
-def push_release(repo_path, from_branch, to_branch, remote='upstream'):
+def push_release(repo_path, from_branch='develop', to_branch='master', remote='upstream'):
 	print('pushing branches', to_branch, from_branch, 'of', repo_path)
 	repo = git.Repo(repo_path)
 	g = repo.git

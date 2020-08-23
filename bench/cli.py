@@ -1,10 +1,9 @@
 import click
 import os, sys, logging, json, pwd, subprocess
-from bench.utils import is_root, PatchError, drop_privileges, get_env_cmd, get_cmd_output, get_frappe, log, find_parent_bench
+from bench.utils import is_root, PatchError, drop_privileges, get_env_cmd, get_cmd_output, get_frappe
 from bench.app import get_apps
 from bench.config.common_site_config import get_config
 from bench.commands import bench_command
-
 
 logger = logging.getLogger('bench')
 from_command_line = False
@@ -13,7 +12,6 @@ def cli():
 	global from_command_line
 	from_command_line = True
 
-	change_working_directory()
 	check_uid()
 	change_dir()
 	change_uid()
@@ -29,6 +27,7 @@ def cli():
 
 	elif len(sys.argv) > 1 and sys.argv[1]=="--help":
 		print(click.Context(bench_command).get_help())
+		print()
 		print(get_frappe_help())
 		return
 
@@ -44,7 +43,7 @@ def cli():
 
 def check_uid():
 	if cmd_requires_root() and not is_root():
-		log('superuser privileges required for this command', level=3)
+		print('superuser privileges required for this command')
 		sys.exit(1)
 
 def cmd_requires_root():
@@ -72,7 +71,7 @@ def change_uid():
 			drop_privileges(uid_name=frappe_user, gid_name=frappe_user)
 			os.environ['HOME'] = pwd.getpwnam(frappe_user).pw_dir
 		else:
-			log('You should not run this command as root', level=3)
+			print('You should not run this command as root')
 			sys.exit(1)
 
 def old_frappe_cli(bench_path='.'):
@@ -94,10 +93,10 @@ def get_frappe_commands(bench_path='.'):
 	python = get_env_cmd('python', bench_path=bench_path)
 	sites_path = os.path.join(bench_path, 'sites')
 	if not os.path.exists(sites_path):
-		log("Command not being executed in bench directory", level=3)
 		return []
 	try:
 		output = get_cmd_output("{python} -m frappe.utils.bench_helper get-frappe-commands".format(python=python), cwd=sites_path)
+		# output = output.decode('utf-8')
 		return json.loads(output)
 	except subprocess.CalledProcessError as e:
 		if hasattr(e, "stderr"):
@@ -107,16 +106,10 @@ def get_frappe_commands(bench_path='.'):
 def get_frappe_help(bench_path='.'):
 	python = get_env_cmd('python', bench_path=bench_path)
 	sites_path = os.path.join(bench_path, 'sites')
+	if not os.path.exists(sites_path):
+		return []
 	try:
 		out = get_cmd_output("{python} -m frappe.utils.bench_helper get-frappe-help".format(python=python), cwd=sites_path)
-		return "\n\nFramework commands:\n" + out.split('Commands:')[1]
-	except:
+		return "Framework commands:\n" + out.split('Commands:')[1]
+	except subprocess.CalledProcessError:
 		return ""
-
-def change_working_directory():
-	"""Allows bench commands to be run from anywhere inside a bench directory"""
-	cur_dir = os.path.abspath(".")
-	bench_path = find_parent_bench(cur_dir)
-
-	if bench_path:
-		os.chdir(bench_path)

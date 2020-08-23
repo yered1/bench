@@ -14,9 +14,7 @@
     when: tmp_bench.stat.exists and not bench_repo_register.stat.exists
 
   - name: install bench
-    pip:
-      name: '{{ bench_repo_path }}'
-      extra_args: '-e'
+    pip: name={{ bench_repo_path }} extra_args='-e'
     become: yes
     become_user: root
 
@@ -27,13 +25,8 @@
     when: overwrite
 
   - name: Check whether bench exists
-    stat:
-      path: "{{ bench_path }}"
+    stat: path="{{ bench_path }}"
     register: bench_stat
-
-  - name: Fix permissions
-    become_user: root
-    command: chown {{ frappe_user }} -R /home/{{ frappe_user }}
 
   - name:  python3 bench init for develop
     command: bench init {{ bench_path }} --frappe-path {{ frappe_repo_url }} --frappe-branch {{ frappe_branch }} --python {{ python }}
@@ -41,8 +34,8 @@
       creates: "{{ bench_path }}"
     when: not bench_stat.stat.exists and not production
 
-  - name: python3 bench init for production
-    command: bench init {{ bench_path }} --frappe-path {{ frappe_repo_url }} --frappe-branch {{ frappe_branch }} --python {{ python }}
+  - name: python2 bench init for production
+    command: bench init {{ bench_path }} --frappe-path {{ frappe_repo_url }} --frappe-branch {{ frappe_branch }}
     args:
       creates: "{{ bench_path }}"
     when: not bench_stat.stat.exists and production
